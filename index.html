@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>SpeedWords</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Segoe UI,sans-serif;
+background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+color:white;
+overflow:hidden;
+}
+
+#game{
+background:rgba(0,0,0,0.45);
+backdrop-filter:blur(14px);
+padding:45px;
+border-radius:20px;
+text-align:center;
+width:440px;
+box-shadow:0 0 50px rgba(0,0,0,0.5);
+animation:fadeIn 1s;
+z-index:2;
+}
+
+h1{margin-top:0;}
+
+#timer{
+font-size:64px;
+font-weight:bold;
+margin:10px 0 25px 0;
+background:linear-gradient(90deg,#00e0ff,#00ffa6);
+-webkit-background-clip:text;
+color:transparent;
+animation:pulse 1s infinite alternate;
+}
+
+@keyframes pulse{
+from{transform:scale(1)}
+to{transform:scale(1.08)}
+}
+
+#word{
+font-size:40px;
+letter-spacing:4px;
+font-weight:bold;
+margin:25px 0;
+min-height:50px;
+opacity:0;
+transform:translateY(20px);
+transition:.4s;
+}
+
+#word.show{
+opacity:1;
+transform:translateY(0);
+}
+
+.letter{transition:.25s;}
+
+.correct{
+color:#4cff9b;
+transform:translateY(-4px);
+}
+
+.wrong{
+color:#ff4c4c;
+}
+
+input{
+width:100%;
+padding:15px;
+font-size:18px;
+border:none;
+border-radius:10px;
+outline:none;
+text-align:center;
+}
+
+button{
+margin-top:25px;
+padding:13px 28px;
+border:none;
+border-radius:12px;
+font-size:17px;
+background:linear-gradient(90deg,#00c3ff,#00ffa6);
+color:white;
+cursor:pointer;
+transition:.25s;
+}
+
+button:hover{
+transform:scale(1.08);
+box-shadow:0 0 15px #00ffa6;
+}
+
+#message{
+margin-top:25px;
+font-size:26px;
+font-weight:bold;
+}
+
+#scoreFinal{
+font-size:30px;
+margin-top:10px;
+opacity:0;
+transform:translateY(20px);
+transition:.4s;
+}
+
+#scoreFinal.show{
+opacity:1;
+transform:translateY(0);
+}
+
+canvas{
+position:fixed;
+top:0;
+left:0;
+pointer-events:none;
+}
+
+@keyframes fadeIn{
+from{opacity:0;transform:scale(.9)}
+to{opacity:1;transform:scale(1)}
+}
+
+</style>
+</head>
+
+<body>
+
+<canvas id="confetti"></canvas>
+<audio id="correctSound" src="correct.mp3" preload="auto"></audio>
+<audio id="wrongSound" src="wrong.mp3" preload="auto"></audio>
+<audio id="victorySound" src="victory.mp3" preload="auto"></audio>
+<audio id="timerSound" src="timer.mp3" preload="auto" loop></audio>
+
+<div id="game">
+
+<h1>⚡ SpeedWords</h1>
+
+<div id="timer">30</div>
+
+<div id="word"></div>
+
+<input id="input" placeholder="Escribe aquí..." disabled>
+
+<button id="startBtn">Iniciar</button>
+
+<div id="message"></div>
+<div id="scoreFinal"></div>
+
+</div>
+
+<script>
+
+/* -------- LISTA DE PALABRAS REALES (100+) -------- */
+
+const words=[
+"computadora","elefante","mariposa","javascript","programacion",
+"astronauta","galaxia","murcielago","electricidad","universo",
+"pantalla","teclado","montaña","velocidad","internet",
+"avion","barco","tren","bicicleta","camino",
+"ciudad","pueblo","aldea","carretera","puente",
+"bosque","selva","desierto","oceano","rio",
+"lago","cascada","lluvia","tormenta","nieve",
+"viento","clima","temperatura","estacion","primavera",
+"verano","otoño","invierno","planeta","estrella",
+"cometa","asteroide","satelite","telescopio","cosmos",
+"energia","bateria","cable","circuito","robot",
+"inteligencia","algoritmo","servidor","cliente","software",
+"hardware","memoria","proceso","sistema","archivo",
+"carpeta","datos","codigo","variable","funcion",
+"clase","objeto","metodo","estructura","compilador",
+"navegador","pagina","sitio","dominio","protocolo",
+"seguridad","cifrado","contraseña","usuario","perfil",
+"mensaje","correo","chat","foro","comunidad",
+"amigo","familia","padre","madre","hermano",
+"hermana","abuelo","abuela","tio","tia",
+"primo","prima","vecino","compañero","equipo",
+"grupo","lider","jefe","trabajo","oficina",
+"empresa","negocio","proyecto","idea","creacion",
+"arte","musica","pintura","escultura","teatro",
+"cine","pelicula","actor","actriz","director",
+"escena","historia","personaje","aventura","misterio",
+"fantasia","ciencia","historia","geografia","matematica",
+"biologia","quimica","fisica","filosofia","literatura",
+"poesia","novela","cuento","autor","lector",
+"biblioteca","libro","pagina","parrafo","oracion",
+"palabra","letra","idioma","lenguaje","comunicacion",
+"voz","sonido","silencio","eco","melodia",
+"ritmo","instrumento","guitarra","piano","violin",
+"bateria","trompeta","saxofon","flauta","cancion",
+"album","concierto","festival","evento","fiesta",
+"celebracion","cumpleaños","regalo","sorpresa","alegria",
+"tristeza","enojo","miedo","amor","esperanza",
+"ilusion","sueño","meta","objetivo","logro",
+"esfuerzo","trabajo","dedicacion","disciplina","paciencia",
+"tiempo","segundo","minuto","hora","dia",
+"semana","mes","año","decada","siglo",
+"historia","pasado","presente","futuro","memoria",
+"recuerdo","experiencia","aprendizaje","conocimiento","sabiduria",
+"verdad","mentira","duda","pregunta","respuesta",
+"problema","solucion","decision","camino","destino",
+"viaje","turismo","hotel","reserva","pasaporte",
+"maleta","equipaje","vuelo","aeropuerto","terminal",
+"control","seguridad","puerta","asiento","ventana",
+"paisaje","foto","imagen","retrato","selfie",
+"camara","lente","zoom","filtro","color",
+"brillo","sombra","contraste","pixel","grafico",
+"animacion","video","stream","canal","suscriptor",
+"contenido","creador","plataforma","red","social",
+"publicacion","comentario","reaccion","tendencia","viral",
+"noticia","periodico","revista","articulo","editor",
+"titulo","subtitulo","seccion","columna","entrevista",
+"reporte","analisis","opinion","critica","reseña",
+"debate","discurso","argumento","logica","razon",
+"pensamiento","mente","cerebro","neurona","sinapsis",
+"cuerpo","salud","medicina","doctor","hospital",
+"paciente","tratamiento","vacuna","virus","bacteria",
+"celula","tejido","organo","sangre","corazon",
+"pulmon","hueso","musculo","piel","cabello",
+"diente","ojo","nariz","boca","oido",
+"gusto","olfato","vista","tacto","sentido",
+"hambre","sed","energia","nutricion","dieta",
+"comida","desayuno","almuerzo","cena","merienda",
+"pan","arroz","pasta","carne","pollo",
+"pescado","verdura","fruta","manzana","banana",
+"naranja","pera","uva","limon","sandia",
+"melon","fresa","cereza","durazno","kiwi",
+"mango","piña","coco","aguacate","tomate",
+"lechuga","zanahoria","cebolla","ajo","papa",
+"batata","maiz","trigo","avena","cebada",
+"azucar","sal","pimienta","aceite","vinagre",
+"salsa","queso","leche","yogur","manteca",
+"helado","chocolate","galleta","pastel","tarta",
+"postre","dulce","caramelo","miel","mermelada",
+"bebida","agua","jugo","refresco","cafe",
+"te","mate","cerveza","vino","coctel"
+];
+
+/* -------- VARIABLES -------- */
+
+let currentWord="";
+let score=0;
+let time=30;
+let timer;
+
+const wordDiv=document.getElementById("word");
+const input=document.getElementById("input");
+const timerDiv=document.getElementById("timer");
+const message=document.getElementById("message");
+const scoreFinal=document.getElementById("scoreFinal");
+const startBtn=document.getElementById("startBtn");
+
+/* -------- FUNCIONES -------- */
+
+function randomWord(){
+return words[Math.floor(Math.random()*words.length)];
+}
+
+function displayWord(word){
+
+wordDiv.innerHTML="";
+
+for(let letter of word){
+
+let span=document.createElement("span");
+span.textContent=letter;
+span.classList.add("letter");
+
+wordDiv.appendChild(span);
+
+}
+
+}
+
+function nextWord(){
+
+currentWord=randomWord();
+displayWord(currentWord);
+
+}
+
+function startGame(){
+
+score=0;
+time=30;
+
+const timerAudio = document.getElementById("timerSound");
+timerAudio.currentTime = 0;
+timerAudio.play();
+
+timerDiv.textContent=time;
+
+message.textContent="";
+scoreFinal.classList.remove("show");
+
+input.value="";
+input.disabled=false;
+input.focus();
+
+wordDiv.classList.add("show");
+
+startBtn.style.display="none";
+
+nextWord();
+
+clearInterval(timer);
+
+timer=setInterval(()=>{
+
+time--;
+timerDiv.textContent=time;
+
+if(time<=0) endGameTime();
+
+},1000);
+
+}
+
+function endGameWrong(){
+
+clearInterval(timer);
+input.disabled=true;
+
+document.getElementById("timerSound").pause();
+
+const wrong = document.getElementById("wrongSound");
+wrong.currentTime = 0;
+wrong.play();
+
+message.textContent="❌ Oops, Palabra errónea";
+
+showScore();
+
+}
+
+function endGameTime(){
+
+clearInterval(timer);
+input.disabled=true;
+
+document.getElementById("timerSound").pause();
+
+const victory = document.getElementById("victorySound");
+victory.currentTime = 0;
+victory.play();
+
+message.textContent="⏰ TIEMPO TERMINADO";
+
+launchConfetti();
+
+showScore();
+
+}
+
+function showScore(){
+
+scoreFinal.textContent="Puntaje: "+score;
+scoreFinal.classList.add("show");
+
+startBtn.style.display="inline-block";
+startBtn.textContent="Jugar otra vez";
+
+}
+
+/* -------- INPUT -------- */
+
+input.addEventListener("input",()=>{
+
+let typed=input.value;
+let letters=wordDiv.children;
+
+for(let i=0;i<letters.length;i++){
+
+letters[i].classList.remove("correct","wrong");
+
+if(typed[i]==null) continue;
+
+if(typed[i]===currentWord[i]){
+
+letters[i].classList.add("correct");
+
+}else{
+
+letters[i].classList.add("wrong");
+endGameWrong();
+return;
+
+}
+
+}
+
+if(typed===currentWord){
+
+score++;
+
+const correct = document.getElementById("correctSound");
+correct.currentTime = 0;
+correct.play();
+
+input.value="";
+nextWord();
+
+}
+
+});
+
+startBtn.onclick=startGame;
+
+/* -------- CONFETTI -------- */
+
+const canvas=document.getElementById("confetti");
+const ctx=canvas.getContext("2d");
+
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+let pieces=[];
+
+function launchConfetti(){
+
+for(let i=0;i<200;i++){
+
+pieces.push({
+x:Math.random()*canvas.width,
+y:-20,
+size:Math.random()*8+4,
+speed:Math.random()*3+2,
+color:`hsl(${Math.random()*360},100%,60%)`
+});
+
+}
+
+}
+
+function updateConfetti(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+for(let p of pieces){
+
+p.y+=p.speed;
+
+ctx.fillStyle=p.color;
+ctx.fillRect(p.x,p.y,p.size,p.size);
+
+}
+
+requestAnimationFrame(updateConfetti);
+
+}
+
+updateConfetti();
+
+</script>
+
+</body>
+</html>
